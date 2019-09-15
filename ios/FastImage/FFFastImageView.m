@@ -10,6 +10,10 @@
 
 @property (nonatomic, strong) NSDictionary* onLoadEvent;
 
+// modify start
+@property (nonatomic, strong) SDImageCache* imageManager;
+// modify end
+
 @end
 
 @implementation FFFastImageView
@@ -18,6 +22,10 @@
     self = [super init];
     self.resizeMode = RCTResizeModeCover;
     self.clipsToBounds = YES;
+    // modify start
+    self.imageManager = [SDImageCache sharedImageCache];
+    // modify end
+    
     return self;
 }
 
@@ -85,10 +93,11 @@
     }
 }
 
-- (void)sendOnLoad:(UIImage *)image {
+- (void)sendOnLoad:(UIImage *)image withStoreUri:(NSString *)uri{
     self.onLoadEvent = @{
                          @"width":[NSNumber numberWithDouble:image.size.width],
-                         @"height":[NSNumber numberWithDouble:image.size.height]
+                         @"height":[NSNumber numberWithDouble:image.size.height],
+                         @"source":uri
                          };
     if (self.onFastImageLoad) {
         self.onFastImageLoad(self.onLoadEvent);
@@ -112,9 +121,9 @@
 - (void)reloadImage
 {
     _needsReload = NO;
-
+    
     if (_source) {
-
+        
         // Load base64 images.
         NSString* url = [_source.url absoluteString];
         if (url && [url hasPrefix:@"data:image"]) {
@@ -133,7 +142,7 @@
                                            });
             }
             self.hasCompleted = YES;
-            [self sendOnLoad:image];
+            [self sendOnLoad:image withStoreUri:url];
             
             if (self.onFastImageLoadEnd) {
                 self.onFastImageLoadEnd(@{});
@@ -202,15 +211,21 @@
                                   NSURL * _Nullable imageURL) {
                         if (error) {
                             weakSelf.hasErrored = YES;
-                                if (weakSelf.onFastImageError) {
-                                    weakSelf.onFastImageError(@{});
-                                }
-                                if (weakSelf.onFastImageLoadEnd) {
-                                    weakSelf.onFastImageLoadEnd(@{});
-                                }
+                            if (weakSelf.onFastImageError) {
+                                weakSelf.onFastImageError(@{});
+                            }
+                            if (weakSelf.onFastImageLoadEnd) {
+                                weakSelf.onFastImageLoadEnd(@{});
+                            }
                         } else {
+                            // modify start
+                            
+                            NSString *source = [self.imageManager cachePathForKey:[[SDWebImageManager sharedManager] cacheKeyForURL:imageURL]];
+                            //                            NSString *source = [self.imageManager.imageCache ];
+                            
+                            
                             weakSelf.hasCompleted = YES;
-                            [weakSelf sendOnLoad:image];
+                            [weakSelf sendOnLoad:image withStoreUri:source];
                             if (weakSelf.onFastImageLoadEnd) {
                                 weakSelf.onFastImageLoadEnd(@{});
                             }
